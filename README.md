@@ -5,11 +5,11 @@
 
 ## Install
 
-'''
+```
 cmake .
 make
 make install
-'''
+```
 
 ## Dependencies
 
