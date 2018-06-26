@@ -1,0 +1,4 @@
+// configure options for phvideocapture project
+#define phvideocapture_VERSION_MAJOR @phvideocapture_VERSION_MAJOR@
+#define phvideocapture_VERSION_MINOR @phvideocapture_VERSION_MINOR@
+#define USE_ASOUNDLIB @asoundlib_FOUND@
