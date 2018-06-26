@@ -1,15 +1,21 @@
 # PHVideoCapture 
 
-  A simple api to read video/audio/subtitle frames from a video stream
-  and extract available metadata.  
+  A simple api to process video, audio or subtitle frames
+  from a video stream.
+
+  ## Features
+  - Use of multiple threads to process frames asynchronously
+    through message queues
+  - Extraction of metadata info, such as title, artist, date, etc.
+  - Ability to designate custom function to process frames
 
 ## Install
 
-'''
+```
 cmake .
 make
 make install
-'''
+```
 
 ## Dependencies
 
