@@ -96,18 +96,10 @@ else()
   message(STATUS "      3rd party libs ${OpenCV_3RDPARTY_LIB_DIR}")
 endif()
 
-find_package(GTK2 2.24)
-if (NOT GTK2_FOUND)
-  message(FATAL_ERROR "GTK2 >=2.24 not found.")
-else()
-  message(STATUS "Found GTK2 at ${GTK2_LIBRARIES}")
-endif()
-  
 configure_file (
   "${PROJECT_SOURCE_DIR}/VideoCaptureConfig.hpp.in"
   "${PROJECT_BINARY_DIR}/VideoCaptureConfig.hpp"
   )
-
 
 add_library(phvideocapture SHARED VideoCapture.cpp)
 set_property(TARGET phvideocapture APPEND PROPERTY COMPILE_FLAGS "-std=c++11")
