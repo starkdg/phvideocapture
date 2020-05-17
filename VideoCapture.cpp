@@ -116,7 +116,7 @@ void VideoCapture::InitVideoCodec(){
         }
 
         if((index) == -1) {
-            cout<<"Error : video streams not found in demuxer ctor";
+            cout<<"Error : video stream not found";
             return;
         }
 
@@ -158,7 +158,7 @@ void VideoCapture::InitAudioCodec(){
         }
 
         if((index) == -1) {
-            cout<<"Error : video streams not found in demuxer ctor";
+            cout<<"Error : audio stream not found";
             return;
         }
 
@@ -200,7 +200,7 @@ void VideoCapture::InitSubtitleCodec(){
         }
 
         if((index) == -1) {
-            cout<<"Error : video streams not found in demuxer ctor";
+            cout<<"Error : subtitle stream not found";
             return;
         }
 
