@@ -116,7 +116,7 @@ void VideoCapture::InitVideoCodec(){
         }
 
         if((index) == -1) {
-            cout<<"Error : video stream not found";
+            cout<<"Error : video stream not found \n";
             return;
         }
 
@@ -158,7 +158,7 @@ void VideoCapture::InitAudioCodec(){
         }
 
         if((index) == -1) {
-            cout<<"Error : audio stream not found";
+            cout<<"Error : audio stream not found \n";
             return;
         }
 
@@ -200,7 +200,7 @@ void VideoCapture::InitSubtitleCodec(){
         }
 
         if((index) == -1) {
-            cout<<"Error : subtitle stream not found";
+            cout<<"Error : subtitle stream not found \n";
             return;
         }
 
