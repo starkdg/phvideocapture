@@ -39,7 +39,10 @@ extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 #include <libavfilter/avfilter.h>
+#ifdef _WIN32
+// this file does not exist on Linux
 #include <libavfilter/avfiltergraph.h>
+#endif
 #include <libavutil/threadmessage.h>
 #include <libavutil/opt.h>
 #include <libavutil/dict.h>

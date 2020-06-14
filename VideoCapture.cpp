@@ -46,9 +46,11 @@ void VideoCapture::RegisterInit(bool warn){
 		av_log_set_level(AV_LOG_WARNING);
 	else
 		av_log_set_level(AV_LOG_ERROR);
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 9, 100)
 	avcodec_register_all();
 	av_register_all();
 	avfilter_register_all();
+#endif
 	avformat_network_init();
 }
 
@@ -103,12 +105,32 @@ void VideoCapture::InitVideoCodec(){
 	char msg[32];
 	int rc;
 
-	AVCodec *pCodec = NULL;
+        int index = -1;
+
+        for(unsigned int i = 0; i < fmt_ctx->nb_streams ;i++ )
+        {
+            if(fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+                index = i;
+                break;
+            }
+        }
+
+        if((index) == -1) {
+            cout<<"Error : video stream not found \n";
+            return;
+        }
+
+        AVCodecContext * pCodecContext = NULL;
+        AVCodec *pCodec = NULL;
+        pCodec = avcodec_find_decoder(fmt_ctx->streams[index]->codecpar->codec_id);
+        pCodecContext = avcodec_alloc_context3(pCodec);
+        avcodec_parameters_to_context(pCodecContext, fmt_ctx->streams[index]->codecpar);
+
 	video_stream  = av_find_best_stream(fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1,&pCodec, 0);
 	if (video_stream < 0)
 		return;
 
-	dec_ctx = fmt_ctx->streams[video_stream]->codec;
+	dec_ctx = pCodecContext;
 	av_opt_set_int(dec_ctx, "refcounted_frames", 1, 0);
 
 	if ((rc = avcodec_open2(dec_ctx, pCodec, 0)) < 0){
@@ -125,11 +147,31 @@ void VideoCapture::InitVideoCodec(){
 void VideoCapture::InitAudioCodec(){
 	char msg[32];
 	int rc;
-	AVCodec *pCodec = NULL;
+        int index = -1;
+
+        for(unsigned int i = 0; i < fmt_ctx->nb_streams ;i++ )
+        {
+            if(fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+                index = i;
+                break;
+            }
+        }
+
+        if((index) == -1) {
+            cout<<"Error : audio stream not found \n";
+            return;
+        }
+
+        AVCodecContext * paCodecContext = NULL;
+        AVCodec *pCodec = NULL;
+        pCodec = avcodec_find_decoder(fmt_ctx->streams[index]->codecpar->codec_id);
+        paCodecContext = avcodec_alloc_context3(pCodec);
+        avcodec_parameters_to_context(paCodecContext, fmt_ctx->streams[index]->codecpar);
+
 	audio_stream = av_find_best_stream(fmt_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, &pCodec, 0);
 	if (audio_stream < 0) return;
 
-	adec_ctx = fmt_ctx->streams[audio_stream]->codec;
+	adec_ctx = paCodecContext;
 	av_opt_set_int(adec_ctx, "refcounted_frames", 1, 0);
 	
 	if ((rc = avcodec_open2(adec_ctx, pCodec, 0)) < 0){
@@ -147,11 +189,31 @@ void VideoCapture::InitAudioCodec(){
 void VideoCapture::InitSubtitleCodec(){
 	char msg[256];
 	int rc;
-	AVCodec *pCodec = NULL;
+        int index = -1;
+
+        for(unsigned int i = 0; i < fmt_ctx->nb_streams ;i++ )
+        {
+            if(fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) {
+                index = i;
+                break;
+            }
+        }
+
+        if((index) == -1) {
+            cout<<"Error : subtitle stream not found \n";
+            return;
+        }
+
+        AVCodecContext * psCodecContext = NULL;
+        AVCodec *pCodec = NULL;
+        pCodec = avcodec_find_decoder(fmt_ctx->streams[index]->codecpar->codec_id);
+        psCodecContext = avcodec_alloc_context3(pCodec);
+        avcodec_parameters_to_context(psCodecContext, fmt_ctx->streams[index]->codecpar);
+
 	subtitle_stream = av_find_best_stream(fmt_ctx, AVMEDIA_TYPE_SUBTITLE, -1, -1, &pCodec, 0);
 	if (subtitle_stream < 0) return;
 
-	subdec_ctx = fmt_ctx->streams[subtitle_stream]->codec;
+	subdec_ctx = psCodecContext;
 	av_opt_set_int(subdec_ctx, "refcounted_frames", 1, 0);
 
 	if ((rc = avcodec_open2(subdec_ctx, pCodec, 0)) < 0){
@@ -164,16 +226,16 @@ void VideoCapture::InitVideoFilters(int tm, int bm, int lm, int rm, int width, i
 	if (dec_ctx == NULL) return;
 	char msg[32];
 	int rc;
-	AVFilter *bufferSrc = avfilter_get_by_name("buffer");
-	AVFilter *bufferSink = avfilter_get_by_name("buffersink");
+	const AVFilter *bufferSrc = avfilter_get_by_name("buffer");
+	const AVFilter *bufferSink = avfilter_get_by_name("buffersink");
 	AVFilterInOut *outputs = avfilter_inout_alloc();
 	AVFilterInOut *inputs  = avfilter_inout_alloc();
 	AVRational time_base = fmt_ctx->streams[video_stream]->time_base;
-	enum PixelFormat pix_fmts[] = { PIX_FMT_YUV420P,
-									PIX_FMT_YUV422P,
-									PIX_FMT_YUV444P,
-									PIX_FMT_GRAY8,
-									PIX_FMT_NONE };
+	enum AVPixelFormat pix_fmts[] = { AV_PIX_FMT_YUV420P,
+									AV_PIX_FMT_YUV422P,
+									AV_PIX_FMT_YUV444P,
+									AV_PIX_FMT_GRAY8,
+									AV_PIX_FMT_NONE };
   
 	filter_graph = avfilter_graph_alloc();
 	if (outputs == NULL || inputs == NULL || filter_graph == NULL)
@@ -266,8 +328,8 @@ void VideoCapture::InitVideoFilters(int tm, int bm, int lm, int rm, int width, i
 void VideoCapture::InitAudioFilters(const int sr, const int flt_fmt){
 	if (adec_ctx == NULL) return;
 	int rc;
-	AVFilter *abuffersrc = avfilter_get_by_name("abuffer");
-	AVFilter *abuffersink = avfilter_get_by_name("abuffersink");
+	const AVFilter *abuffersrc = avfilter_get_by_name("abuffer");
+	const AVFilter *abuffersink = avfilter_get_by_name("abuffersink");
 	AVFilterInOut *outputs = avfilter_inout_alloc();
 	AVFilterInOut *inputs = avfilter_inout_alloc();
 	int sample_fmts[] = {AV_SAMPLE_FMT_S16, AV_SAMPLE_FMT_FLT, -1};
@@ -371,10 +433,20 @@ void VideoCapture::InitMsgQueues(){
 }
 
 void VideoCapture::FlushFrames(){
+
+        int ret = 0;
+
 	if (buffersrc_ctx != NULL) // EOF marker to filter graph
-		av_buffersrc_add_frame_flags(buffersrc_ctx, NULL, 0);
+		ret = av_buffersrc_add_frame_flags(buffersrc_ctx, NULL, 0);
+
+        if (ret <0)
+            std::cerr <<  "Pb with av_buffersrc_add_frame_flags(buffersrc_ctx, NULL, 0)" << "\n";
+
 	if (abuffersrc_ctx != NULL)
-		av_buffersrc_add_frame_flags(abuffersrc_ctx, NULL, 0);
+		ret = av_buffersrc_add_frame_flags(abuffersrc_ctx, NULL, 0);
+
+        if (ret <0)
+            std::cerr <<  "Pb with av_buffersrc_add_frame_flags(abuffersrc_ctx, NULL, 0)" << "\n";
 
 	if (dec_ctx != NULL)   //flush frames from filters
 		PushVideoFrames();
@@ -416,26 +488,61 @@ void VideoCapture::PushVideoFrames(){
 	}
 }
 
-void VideoCapture::HandleVideoPacket(AVPacket &pkt){
-	char msg[64];
-	int rc, done = 0;
-	if ((rc = avcodec_decode_video2(dec_ctx, pframe_decoded, &done, &pkt)) < 0){
-		av_strerror(rc, msg, sizeof(msg));
-		throw VideoCaptureException(string(msg));
-	}
-	pkt.size -= rc;
-	pkt.data += rc;
-	if (done) {
-		pframe_decoded->pts = av_frame_get_best_effort_timestamp(pframe_decoded);
-		if ((rc = av_buffersrc_add_frame_flags(buffersrc_ctx, pframe_decoded,
-											   AV_BUFFERSRC_FLAG_KEEP_REF)) < 0){
-			av_strerror(rc, msg, sizeof(msg));
-			printf("error adding frame to buffer: %s %x\n", msg, rc);
-			throw VideoCaptureException(string(msg));
-		}
-		av_frame_unref(pframe_decoded);
-		PushVideoFrames();
-	}
+void VideoCapture::HandleVideoPacket(AVPacket &pkt)
+{
+    char msg[64];
+    int rc, done = 0;
+
+    if (&pkt) {
+
+        rc = avcodec_send_packet(dec_ctx, &pkt);
+
+        if (rc < 0) {
+            if (rc == AVERROR_EOF)
+                rc = 0;
+            else {
+                av_strerror(rc, msg, sizeof(msg));
+                throw VideoCaptureException(string(msg));
+            }
+        }
+    }
+
+    rc = avcodec_receive_frame(dec_ctx, pframe_decoded);
+
+    if (rc < 0 && rc != AVERROR(EAGAIN) && rc != AVERROR_EOF)
+    {
+        av_strerror(rc, msg, sizeof(msg));
+        throw VideoCaptureException(string(msg));
+    }
+
+    if (rc >= 0)
+        done = 1;
+
+    rc = pkt.size;
+
+    pkt.size -= rc;
+    pkt.data += rc;
+
+    if (done)
+    {
+#ifndef FF_API_FRAME_GET_SET
+        pframe_decoded->pts = av_frame_get_best_effort_timestamp(pframe_decoded);
+#else
+        pframe_decoded->pts = pframe_decoded->best_effort_timestamp;
+#endif
+
+
+        if ((rc = av_buffersrc_add_frame_flags(buffersrc_ctx, pframe_decoded,
+                                               AV_BUFFERSRC_FLAG_KEEP_REF)) < 0)
+        {
+            av_strerror(rc, msg, sizeof(msg));
+            printf("error adding frame to buffer: %s %x\n", msg, rc);
+            throw VideoCaptureException(string(msg));
+        }
+
+        av_frame_unref(pframe_decoded);
+        PushVideoFrames();
+    }
 }
 
 void VideoCapture::PushAudioFrames_flt(){
@@ -521,15 +628,33 @@ void VideoCapture::HandleAudioPacket(AVPacket &pkt){
 	char msg[64];
 	char msg2[32];
 	int rc, done = 0;
-	if ((rc = avcodec_decode_audio4(adec_ctx, pframeAu, &done, &pkt)) < 0){
-		av_strerror(rc, msg2, sizeof(msg2));
-		snprintf(msg, sizeof(msg), "unable to decode audio frame: %s", msg2);
-		throw VideoCaptureException(string(msg));
-	}
+
+        rc = avcodec_receive_frame(adec_ctx, pframeAu);
+
+        if (rc == 0) {
+            done = 1;
+        }
+
+        rc = avcodec_send_packet(adec_ctx, &pkt);
+
+        if(rc < 0) {
+            av_strerror(rc, msg2, sizeof(msg2));
+            snprintf(msg, sizeof(msg), "unable to decode audio frame: %s", msg2);
+            throw VideoCaptureException(string(msg));
+        }
+        else
+           rc = pkt.size;
+
+
 	pkt.size -= rc;
 	pkt.data += rc;
 	if (done) {
-		pframeAu->pts = av_frame_get_best_effort_timestamp(pframeAu);
+#ifndef FF_API_FRAME_GET_SET
+            pframeAu->pts = av_frame_get_best_effort_timestamp(pframeAu);
+#else
+            pframeAu->pts = pframeAu->best_effort_timestamp;
+#endif
+
 		if ((rc = av_buffersrc_add_frame_flags(abuffersrc_ctx, pframeAu,
 											   AV_BUFFERSRC_FLAG_KEEP_REF)) < 0){
 			av_strerror(rc, msg2, sizeof(msg2));
@@ -644,7 +769,7 @@ uint32_t VideoCapture::CountVideoPackets(){
 		}
 		if (pkt.stream_index == video_stream) 
 			count++;
-		av_free_packet(&pkt);
+		av_packet_unref(&pkt);
 	}
 
 	avio_flush(fmt_ctx->pb);
@@ -695,15 +820,15 @@ void VideoCapture::Process(int64_t secs){
 		} else if (pkt.stream_index == subtitle_stream){
 			HandleSubtitlePacket(pkt);
 		} else {
-			av_free_packet(&pkt0);
+			av_packet_unref(&pkt0);
 		}
 		if (pkt.size <= 0){
-			av_free_packet(&pkt0);
+			av_packet_unref(&pkt0);
 		}
 		if (secs > 0 && frame_count >= total_frames){
 			FlushFrames();
 			done = true;
-			av_free_packet(&pkt0);
+			av_packet_unref(&pkt0);
 		}
 	}
 }

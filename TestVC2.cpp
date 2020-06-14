@@ -64,7 +64,7 @@ int main(int argc, char **argv){
 		AVPacket pkt;
 		while ((rc = vc.NextPacket(pkt)) >= 0){
 			cout << "(video pkt " << count++ << ") pkt size: " << pkt.size << endl; 
-			av_free_packet(&pkt);
+			av_packet_unref(&pkt);
 		}
 		cout << "no. packets: " << count << endl;
 	} catch (ph::VideoCaptureException &ex){
